@@ -10,20 +10,7 @@ datasource db {
     // NOTE: When using mysql or sqlserver, uncomment the @db.Text annotations in model Account below
     // Further reading:
     // https://next-auth.js.org/adapters/prisma#create-the-prisma-schema
-    // https://www.prisma.io/docs/reference/api-reference/prisma-schema-reference#string
     url      = env("DATABASE_URL")
-}
-
-model Post {
-    id        Int      @id @default(autoincrement())
-    name      String
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
-
-    createdBy   User   @relation(fields: [createdById], references: [id])
-    createdById String
-
-    @@index([name])
 }
 
 // Necessary for Next auth
@@ -56,13 +43,17 @@ model Session {
 
 model User {
     id            String    @id @default(cuid())
+    firstName     String?   // Имя пользователя
+    lastName      String?   // Фамилия пользователя
     name          String?
     email         String?   @unique
     emailVerified DateTime?
     image         String?
     accounts      Account[]
     sessions      Session[]
-    posts         Post[]
+    transactions  Transaction[] // Связь с транзакциями
+    categories    Category[] // Связь с категориями
+    budgets       Budget[] // Связь с бюджетами
 }
 
 model VerificationToken {
@@ -71,4 +62,56 @@ model VerificationToken {
     expires    DateTime
 
     @@unique([identifier, token])
+}
+
+// Модели для управления личными финансами
+
+model Transaction {
+    id          String   @id @default(cuid())
+    userId      String
+    user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    amount      String
+    description String?  
+    date        DateTime @default(now())
+    categoryId  String? 
+    category    Category? @relation(fields: [categoryId], references: [id])
+    type        TransactionType 
+    @@index([userId]) 
+    @@index([categoryId])
+}
+
+enum TransactionType {
+    INCOME
+    EXPENSE
+}
+
+model Category {
+    id          String        @id @default(cuid())
+    userId      String
+    user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+    name        String
+    description String?
+    type        CategoryType  
+    transactions Transaction[] 
+    budgets     Budget[]      
+    @@unique([userId, name]) 
+    @@index([userId])
+}
+
+enum CategoryType {
+    INCOME
+    EXPENSE
+}
+
+model Budget {
+    id          String       @id @default(cuid())
+    userId      String
+    user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+    categoryId  String
+    category    Category     @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+    amount      String
+    startDate   DateTime     @default(now())
+    endDate     DateTime
+    @@index([userId])
+    @@index([categoryId])
 }
